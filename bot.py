@@ -45,6 +45,8 @@ from __init__ import (
 from config import Config
 from helpers import database
 from helpers.utils import UserSettings, get_readable_file_size, get_readable_time
+from aiohttp import web
+from plugins import web_server
 
 botStartTime = time.time()
 parent_id = Config.GDRIVE_FOLDER_ID
@@ -750,5 +752,13 @@ if __name__ == "__main__":
         LOGGER.error(f"{err}")
         Config.IS_PREMIUM = False
         pass
+            app = web.AppRunner(await web_server())
+            await app.setup()
+            bind_address = "0.0.0.0"
+            await web.TCPSite(app, bind_address, PORT).start()
+
+async def stop(self, *args):
+            await super().stop()
+            self.LOGGER(__name__).info("Bot stopped.")
 
     mergeApp.run()
