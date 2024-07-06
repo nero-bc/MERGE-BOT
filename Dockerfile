@@ -19,6 +19,12 @@ RUN venv/bin/python -m pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# Make port 8080 available to the world outside this container
+EXPOSE 8080
+
+# Define environment variable
+ENV NAME World
+
 RUN chmod +x start.sh
 
 CMD ["bash","start.sh"]
