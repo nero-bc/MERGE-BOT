@@ -8,11 +8,9 @@ import asyncio
 import os
 import shutil
 import time
-
 import psutil
-import pyromod
 from PIL import Image
-from pyrogram import Client, filters,enums
+from pyrogram import Client, filters, enums
 from pyrogram.errors import (
     FloodWait,
     InputUserDeactivated,
@@ -26,6 +24,8 @@ from pyrogram.types import (
     Message,
     User,
 )
+from flask import Flask, jsonify
+from threading import Thread
 
 from __init__ import (
     AUDIO_EXTENSIONS,
@@ -45,12 +45,12 @@ from __init__ import (
 from config import Config
 from helpers import database
 from helpers.utils import UserSettings, get_readable_file_size, get_readable_time
-from aiohttp import web
-from plugins import web_server
 
 botStartTime = time.time()
 parent_id = Config.GDRIVE_FOLDER_ID
 
+# Initialize Flask app
+app = Flask(__name__)
 
 class MergeBot(Client):
     def start(self):
@@ -69,7 +69,7 @@ class MergeBot(Client):
 mergeApp = MergeBot(
     name="merge-bot",
     api_hash=Config.API_HASH,
-    api_id=Config.TELEGRAM_API,
+    api_id=int(Config.TELEGRAM_API),
     bot_token=Config.BOT_TOKEN,
     workers=300,
     plugins=dict(root="plugins"),
@@ -80,46 +80,13 @@ mergeApp = MergeBot(
 if os.path.exists("downloads") == False:
     os.makedirs("downloads")
 
+# Flask Routes
+@app.route('/')
+def index():
+    return jsonify({"status": "running"})
 
-@mergeApp.on_message(filters.command(["log"]) & filters.user(Config.OWNER_USERNAME))
-async def sendLogFile(c: Client, m: Message):
-    await m.reply_document(document="./mergebotlog.txt")
-    return
-
-
-@mergeApp.on_message(filters.command(["login"]) & filters.private)
-async def loginHandler(c: Client, m: Message):
-    user = UserSettings(m.from_user.id, m.from_user.first_name)
-    if user.banned:
-        await m.reply_text(text=f"**Banned User Detected!**\n  🛡️ Unfortunately you can't use me\n\nContact: 🈲 @{Config.OWNER_USERNAME}", quote=True)
-        return
-    if user.user_id == int(Config.OWNER):
-        user.allowed = True
-    if user.allowed:
-        await m.reply_text(text=f"**Dont Spam**\n  ⚡ You can use me!!", quote=True)
-    else:
-        try:
-            passwd = m.text.split(" ", 1)[1]
-        except:
-            await m.reply_text("**Command:**\n  `/login <password>`\n\n**Usage:**\n  `password`: Get the password from owner",quote=True,parse_mode=enums.parse_mode.ParseMode.MARKDOWN)
-        passwd = passwd.strip()
-        if passwd == Config.PASSWORD:
-            user.allowed = True
-            await m.reply_text(
-                text=f"**Login passed ✅,**\n  ⚡ Now you can use me!!", quote=True
-            )
-        else:
-            await m.reply_text(
-                text=f"**Login failed ❌,**\n  🛡️ Unfortunately you can't use me\n\nContact: 🈲 @{Config.OWNER_USERNAME}",
-                quote=True,
-            )
-    user.set()
-    del user
-    return
-
-
-@mergeApp.on_message(filters.command(["stats"]) & filters.private)
-async def stats_handler(c: Client, m: Message):
+@app.route('/stats')
+def stats():
     currentTime = get_readable_time(time.time() - botStartTime)
     total, used, free = shutil.disk_usage(".")
     total = get_readable_file_size(total)
@@ -130,19 +97,23 @@ async def stats_handler(c: Client, m: Message):
     cpuUsage = psutil.cpu_percent(interval=0.5)
     memory = psutil.virtual_memory().percent
     disk = psutil.disk_usage("/").percent
-    stats = (
-        f"<b>╭「 💠 BOT STATISTICS 」</b>\n"
-        f"<b>│</b>\n"
-        f"<b>├⏳ Bot Uptime : {currentTime}</b>\n"
-        f"<b>├💾 Total Disk Space : {total}</b>\n"
-        f"<b>├📀 Total Used Space : {used}</b>\n"
-        f"<b>├💿 Total Free Space : {free}</b>\n"
-        f"<b>├🔺 Total Upload : {sent}</b>\n"
-        f"<b>├🔻 Total Download : {recv}</b>\n"
-        f"<b>├🖥 CPU : {cpuUsage}%</b>\n"
-        f"<b>├⚙️ RAM : {memory}%</b>\n"
-        f"<b>╰💿 DISK : {disk}%</b>"
-    )
+    stats = {
+        "uptime": currentTime,
+        "disk": {"total": total, "used": used, "free": free},
+        "network": {"sent": sent, "recv": recv},
+        "cpu": cpuUsage,
+        "memory": memory,
+        "disk_usage": disk,
+    }
+    return jsonify(stats)
+
+# Start Flask in a separate thread
+def run_flask():
+    app.run(host='0.0.0.0', port=8080)
+
+Thread(target=run_flask).start()
+
+# Rest of your bot code...
     await m.reply_text(text=stats, quote=True)
 
 
@@ -752,13 +723,5 @@ if __name__ == "__main__":
         LOGGER.error(f"{err}")
         Config.IS_PREMIUM = False
         pass
-            app = web.AppRunner(await web_server())
-            await app.setup()
-            bind_address = "0.0.0.0"
-            await web.TCPSite(app, bind_address, 8080).start()
-
-async def stop(self, *args):
-            await super().stop()
-            self.LOGGER(__name__).info("Bot stopped.")
 
     mergeApp.run()
