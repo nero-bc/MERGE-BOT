@@ -10,3 +10,5 @@ python-dotenv
 requests
 TgCrypto
 aiohttp
+asyncio
+Flask
