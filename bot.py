@@ -117,7 +117,7 @@ def run_flask():
 Thread(target=run_flask).start()
 
 # Rest of your bot code...
-    await m.reply_text(text=stats, quote=True)
+   await m.reply_text(text=stats, quote=True)
 
 
 @mergeApp.on_message(
