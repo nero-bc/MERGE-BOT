@@ -109,7 +109,10 @@ def stats():
 
 # Start Flask in a separate thread
 def run_flask():
-    app.run(host='0.0.0.0', port=8080)
+    app = web.AppRunner(await web_server())
+    await app.setup()       
+    await web.TCPSite(app, "0.0.0.0", 8060).start()     
+    print(f"{me.first_name} Iꜱ Sᴛᴀʀᴛᴇᴅ.....✨️")
 
 Thread(target=run_flask).start()
 
