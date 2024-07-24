@@ -114,7 +114,7 @@ def stats():
 def run_flask():
     app = web.AppRunner(await web_server())
     await app.setup()       
-    await web.TCPSite(app, "0.0.0.0", 8060).start()     
+    await web.TCPSite(app, "0.0.0.0", 8080).start()     
     print(f"{me.first_name} Iꜱ Sᴛᴀʀᴛᴇᴅ.....✨️")
 
 Thread(target=run_flask).start()
